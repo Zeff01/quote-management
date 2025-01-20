@@ -11,7 +11,6 @@ export async function GET(
     const client = await clientPromise;
     const db = client.db("quoteManagement");
 
-    // Validate ID format
     if (!ObjectId.isValid(resolvedParams.id)) {
       return NextResponse.json(
         { message: "Invalid quote ID format" },
@@ -48,8 +47,6 @@ export async function POST(
     const { status } = await req.json();
 
     console.log("Processing quote update:", { id: resolvedParams.id, status });
-
-    // Validate status
     if (!["accepted", "denied"].includes(status)) {
       return NextResponse.json(
         { message: 'Invalid status. Must be "accepted" or "denied".' },
@@ -57,7 +54,6 @@ export async function POST(
       );
     }
 
-    // Validate ID format
     if (!ObjectId.isValid(resolvedParams.id)) {
       return NextResponse.json(
         { message: "Invalid quote ID format" },

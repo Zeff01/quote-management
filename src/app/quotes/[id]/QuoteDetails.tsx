@@ -53,8 +53,6 @@ export default function QuoteDetails({ id }: QuoteDetailsProps) {
         throw new Error(errorData.message || "Failed to update quote");
       }
 
-      const data = await res.json();
-
       // Send WebSocket update
       const ws = WebSocketService.getInstance();
       ws.sendMessage({

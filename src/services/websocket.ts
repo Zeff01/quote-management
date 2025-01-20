@@ -100,7 +100,7 @@ class WebSocketService {
     } else {
       console.log("WebSocket not connected, attempting to connect...");
       this.connect();
-      setTimeout(() => this.sendMessage(message), 1000); // Retry after connection
+      setTimeout(() => this.sendMessage(message), 1000);
     }
   }
 
