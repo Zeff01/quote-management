@@ -57,28 +57,36 @@ export default function Dashboard() {
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async () => {
+    console.log("[Dashboard] Fetching data from API...");
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats`
       );
+      console.log("[Dashboard] API Response Status:", res.status);
+
       if (!res.ok) {
         throw new Error("Failed to fetch stats");
       }
+
       const data = (await res.json()) as DashboardData;
+      console.log("[Dashboard] Fetched Data:", data);
+
       setStats(data.stats);
       setQuotes(data.recentQuotes);
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error("[Dashboard] Error fetching data:", error);
       setError("Failed to load dashboard data");
     } finally {
+      console.log("[Dashboard] Fetching data complete.");
       setLoading(false);
     }
   }, []);
 
   const handleWebSocketUpdate = useCallback(
     (data: WebSocketUpdateData) => {
-      console.log("Received WebSocket update:", data);
+      console.log("[WebSocket] Received update:", data);
       if (data.type === "QUOTE_UPDATE") {
+        console.log("[WebSocket] Triggering fetch for updated data...");
         if (fetchTimeoutRef.current) {
           clearTimeout(fetchTimeoutRef.current);
         }
@@ -89,18 +97,19 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
+    console.log("[Dashboard] Component mounted.");
     fetchData();
 
-    // Initialize WebSocket only once
     if (!wsRef.current) {
+      console.log("[WebSocket] Initializing WebSocket connection...");
       wsRef.current = WebSocketService.getInstance();
     }
 
-    // Add listener
+    console.log("[WebSocket] Adding WebSocket listener...");
     const cleanup = wsRef.current.addListener(handleWebSocketUpdate);
 
-    // Cleanup function
     return () => {
+      console.log("[Dashboard] Cleaning up WebSocket listener...");
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
@@ -109,6 +118,7 @@ export default function Dashboard() {
   }, [fetchData, handleWebSocketUpdate]);
 
   if (loading) {
+    console.log("[Dashboard] Loading state...");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -117,6 +127,7 @@ export default function Dashboard() {
   }
 
   if (error) {
+    console.log("[Dashboard] Error state:", error);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-red-500">{error}</div>
@@ -124,13 +135,18 @@ export default function Dashboard() {
     );
   }
 
+  console.log("[Dashboard] Rendered with data:", { stats, quotes });
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* Home Button */}
         <div className="mb-6">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => {
+              console.log("[Dashboard] Navigating to Home...");
+              router.push("/");
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
           >
             <Home className="w-5 h-5" />
