@@ -22,15 +22,23 @@ export async function GET() {
       .limit(10)
       .toArray();
 
-    return NextResponse.json({
-      stats: {
-        total,
-        accepted,
-        denied,
-        pending,
+    return NextResponse.json(
+      {
+        stats: {
+          total,
+          accepted,
+          denied,
+          pending,
+        },
+        recentQuotes,
       },
-      recentQuotes,
-    });
+      {
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
