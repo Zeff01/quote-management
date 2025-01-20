@@ -5,7 +5,7 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
   private listeners: Set<(data: any) => void> = new Set();
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private wsUrl = "ws://localhost:3001";
+  private wsUrl = process.env.NEXT_PUBLIC_WS_URL;
   private isConnecting = false;
 
   private constructor() {
