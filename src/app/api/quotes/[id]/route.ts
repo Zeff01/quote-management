@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { QuoteDocument, QuoteUpdateRequest, QuoteResponse } from "@/types/db";
 
 export async function GET(
   req: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
       );
     }
 
-    const quote = await db.collection("quotes").findOne({
+    const quote = await db.collection<QuoteDocument>("quotes").findOne({
       _id: new ObjectId(resolvedParams.id),
     });
 
@@ -44,9 +45,11 @@ export async function POST(
     const resolvedParams = await Promise.resolve(params);
     const client = await clientPromise;
     const db = client.db("quoteManagement");
-    const { status } = await req.json();
+
+    const { status } = (await req.json()) as QuoteUpdateRequest;
 
     console.log("Processing quote update:", { id: resolvedParams.id, status });
+
     if (!["accepted", "denied"].includes(status)) {
       return NextResponse.json(
         { message: 'Invalid status. Must be "accepted" or "denied".' },
@@ -61,25 +64,35 @@ export async function POST(
       );
     }
 
-    const result = await db.collection("quotes").findOneAndUpdate(
-      { _id: new ObjectId(resolvedParams.id) },
-      {
-        $set: {
-          status,
-          updatedAt: new Date(),
+    const result = await db
+      .collection<QuoteDocument>("quotes")
+      .findOneAndUpdate(
+        { _id: new ObjectId(resolvedParams.id) },
+        {
+          $set: {
+            status,
+            updatedAt: new Date(),
+          },
         },
-      },
-      { returnDocument: "after" }
-    );
+        { returnDocument: "after" }
+      );
 
+    // Check if result exists
     if (!result) {
       return NextResponse.json({ message: "Quote not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
+    // If using WebSocket broadcast
+    if (global.broadcastQuoteUpdate) {
+      global.broadcastQuoteUpdate(result);
+    }
+
+    const response: QuoteResponse = {
       message: "Quote status updated successfully",
       quote: result,
-    });
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error updating quote:", error);
     return NextResponse.json(

@@ -1,10 +1,37 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { BarChart, CheckCircle, XCircle, Clock } from "lucide-react";
+import { BarChart, CheckCircle, Clock, XCircle } from "lucide-react";
 import WebSocketService from "@/services/websocket";
+import { QuoteDocument, QuoteStats } from "@/types/db";
 
-const DashboardCard = ({ title, value, icon, color }) => (
+interface DashboardCardProps {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+interface WebSocketUpdateData {
+  type: "QUOTE_UPDATE";
+  data: {
+    id: string;
+    status: "accepted" | "denied";
+    updatedAt: string;
+  };
+}
+
+interface DashboardData {
+  stats: QuoteStats;
+  recentQuotes: QuoteDocument[];
+}
+
+const DashboardCard: React.FC<DashboardCardProps> = ({
+  title,
+  value,
+  icon,
+  color,
+}) => (
   <div className="bg-white rounded-xl shadow-lg p-6">
     <div className="flex items-center justify-between mb-4">
       <div className={`p-3 rounded-lg ${color} bg-opacity-20`}>{icon}</div>
@@ -15,15 +42,15 @@ const DashboardCard = ({ title, value, icon, color }) => (
 );
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<QuoteStats>({
     total: 0,
     accepted: 0,
     denied: 0,
     pending: 0,
   });
-  const [quotes, setQuotes] = useState([]);
+  const [quotes, setQuotes] = useState<QuoteDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
   const wsRef = useRef<WebSocketService | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -33,7 +60,7 @@ export default function Dashboard() {
       if (!res.ok) {
         throw new Error("Failed to fetch stats");
       }
-      const data = await res.json();
+      const data = (await res.json()) as DashboardData;
       setStats(data.stats);
       setQuotes(data.recentQuotes);
     } catch (error) {
@@ -45,10 +72,9 @@ export default function Dashboard() {
   }, []);
 
   const handleWebSocketUpdate = useCallback(
-    (data: any) => {
+    (data: WebSocketUpdateData) => {
       console.log("Received WebSocket update:", data);
       if (data.type === "QUOTE_UPDATE") {
-        // Debounce the fetch to prevent multiple rapid updates
         if (fetchTimeoutRef.current) {
           clearTimeout(fetchTimeoutRef.current);
         }
@@ -129,9 +155,9 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold mb-4">Recent Quotes</h2>
           <div className="space-y-4">
-            {quotes.map((quote: any) => (
+            {quotes.map((quote) => (
               <div
-                key={quote._id}
+                key={quote._id.toString()}
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
               >
                 <div>

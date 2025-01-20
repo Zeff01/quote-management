@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import WebSocketService from "@/services/websocket";
+import { QuoteDocument } from "@/types/db";
 
 interface QuoteDetailsProps {
   id: string;
@@ -10,7 +11,7 @@ interface QuoteDetailsProps {
 
 export default function QuoteDetails({ id }: QuoteDetailsProps) {
   const router = useRouter();
-  const [quote, setQuote] = useState<any>(null);
+  const [quote, setQuote] = useState<QuoteDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");

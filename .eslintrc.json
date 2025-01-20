@@ -1,0 +1,15 @@
+{
+    "extends": "next/core-web-vitals",
+    "rules": {
+      "no-var": "error",
+      "@typescript-eslint/no-var-requires": "off"
+    },
+    "overrides": [
+      {
+        "files": ["**/*.d.ts"],
+        "rules": {
+          "no-var": "off"
+        }
+      }
+    ]
+  }

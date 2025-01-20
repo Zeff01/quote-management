@@ -1,42 +1,32 @@
-import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
-import clientPromise from "@/lib/mongodb";
+import { NextRequest, NextResponse } from "next/server";
+import { updateQuoteStatus } from "@/lib/db";
+
+interface QuoteUpdateRequest {
+  status: "accepted" | "denied";
+}
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { status } = await request.json();
+    const { status } = (await request.json()) as QuoteUpdateRequest;
 
     if (!["accepted", "denied"].includes(status)) {
       return NextResponse.json({ message: "Invalid status" }, { status: 400 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("quoteManagement");
+    const updatedQuote = await updateQuoteStatus(params.id, status);
 
-    const result = await db.collection("quotes").findOneAndUpdate(
-      { _id: new ObjectId(params.id) },
-      {
-        $set: {
-          status,
-          updatedAt: new Date(),
-        },
-      },
-      { returnDocument: "after" }
-    );
-
-    if (!result) {
+    if (!updatedQuote) {
       return NextResponse.json({ message: "Quote not found" }, { status: 404 });
     }
 
-    // Broadcast the update to all connected clients
     if (global.broadcastQuoteUpdate) {
-      global.broadcastQuoteUpdate(result);
+      global.broadcastQuoteUpdate(updatedQuote);
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(updatedQuote);
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
