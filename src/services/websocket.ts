@@ -3,9 +3,9 @@ class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private listeners: Set<(data: any) => void> = new Set();
+  private listeners: Set<(data: unknown) => void> = new Set();
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+  private wsUrl: string | undefined = process.env.NEXT_PUBLIC_WS_URL;
   private isConnecting = false;
 
   private constructor() {
@@ -14,6 +14,7 @@ class WebSocketService {
     }
   }
 
+  // Singleton pattern
   static getInstance(): WebSocketService {
     if (!WebSocketService.instance) {
       WebSocketService.instance = new WebSocketService();
@@ -21,8 +22,13 @@ class WebSocketService {
     return WebSocketService.instance;
   }
 
-  private connect() {
-    if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
+  // Establish WebSocket connection
+  private connect(): void {
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.isConnecting ||
+      !this.wsUrl
+    ) {
       return;
     }
 
@@ -37,9 +43,9 @@ class WebSocketService {
         this.isConnecting = false;
       };
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data);
+          const data: unknown = JSON.parse(event.data);
           this.notifyListeners(data);
         } catch (error) {
           console.error("Error processing WebSocket message:", error);
@@ -69,18 +75,21 @@ class WebSocketService {
     }
   }
 
-  addListener(callback: (data: any) => void) {
+  // Add a listener to handle WebSocket messages
+  addListener(callback: (data: unknown) => void): () => void {
     if (!this.listeners.has(callback)) {
       this.listeners.add(callback);
     }
     return () => this.removeListener(callback);
   }
 
-  removeListener(callback: (data: any) => void) {
+  // Remove a listener
+  removeListener(callback: (data: unknown) => void): void {
     this.listeners.delete(callback);
   }
 
-  private notifyListeners(data: any) {
+  // Notify all listeners of new data
+  private notifyListeners(data: unknown): void {
     this.listeners.forEach((listener) => {
       try {
         listener(data);
@@ -90,7 +99,8 @@ class WebSocketService {
     });
   }
 
-  sendMessage(message: any) {
+  // Send a message through the WebSocket
+  sendMessage(message: unknown): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       try {
         this.ws.send(JSON.stringify(message));
@@ -104,7 +114,8 @@ class WebSocketService {
     }
   }
 
-  disconnect() {
+  // Disconnect the WebSocket and clear resources
+  disconnect(): void {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
