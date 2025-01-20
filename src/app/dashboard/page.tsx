@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { BarChart, CheckCircle, Clock, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BarChart, CheckCircle, Clock, XCircle, Home } from "lucide-react";
 import WebSocketService from "@/services/websocket";
 import { QuoteDocument, QuoteStats } from "@/types/db";
 
@@ -42,6 +43,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 );
 
 export default function Dashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<QuoteStats>({
     total: 0,
     accepted: 0,
@@ -56,7 +58,9 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/quotes/stats");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats`
+      );
       if (!res.ok) {
         throw new Error("Failed to fetch stats");
       }
@@ -123,6 +127,17 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4">
+        {/* Home Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => router.push("/")}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
+          >
+            <Home className="w-5 h-5" />
+            Home
+          </button>
+        </div>
+
         <h1 className="text-3xl font-bold mb-8">Quote Dashboard</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
