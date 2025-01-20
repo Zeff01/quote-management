@@ -86,6 +86,7 @@ export default function Dashboard() {
     (data: WebSocketUpdateData) => {
       console.log("[WebSocket] Received update:", data);
       if (data.type === "QUOTE_UPDATE") {
+        fetchData();
         console.log("[WebSocket] Triggering fetch for updated data...");
         if (fetchTimeoutRef.current) {
           clearTimeout(fetchTimeoutRef.current);
