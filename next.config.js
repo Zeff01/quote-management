@@ -3,7 +3,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_WS_URL:
       process.env.NODE_ENV === "production"
-        ? "wss://your-render-app.onrender.com" // You'll update this with your Render URL
+        ? "https://quote-management.onrender.com"
         : "ws://localhost:3001",
   },
 };
