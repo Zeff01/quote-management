@@ -1,7 +1,6 @@
 import { createServer } from "http";
-import { WebSocketServer, WebSocket, RawData } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 
-// Define types for our messages
 interface QuoteData {
   id: string;
   status: "accepted" | "denied" | "pending";
@@ -13,7 +12,6 @@ interface WebSocketMessage {
   data: QuoteData;
 }
 
-// Server configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 const HOST = process.env.HOST || "localhost";
 
@@ -23,15 +21,15 @@ const server = createServer();
 // Create WebSocket server
 const wss = new WebSocketServer({ server });
 
-// Broadcast function to send updates to all connected clients
+// Broadcast function
 const broadcast = (data: WebSocketMessage): void => {
   const message = JSON.stringify(data);
-  wss.clients.forEach((client) => {
+  wss.clients.forEach((client: WebSocket) => {
     if (client.readyState === WebSocket.OPEN) {
       try {
         client.send(message);
-      } catch (error) {
-        console.error("Error broadcasting message:", error);
+      } catch (err) {
+        console.error("Broadcast error:", err);
       }
     }
   });
@@ -41,16 +39,16 @@ const broadcast = (data: WebSocketMessage): void => {
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected to WebSocket");
 
-  // Send initial connection confirmation
+  // Send connection confirmation
   try {
     ws.send(JSON.stringify({ type: "CONNECTION_ESTABLISHED" }));
-  } catch (error) {
-    console.error("Error sending connection confirmation:", error);
+  } catch (err) {
+    console.error("Error sending confirmation:", err);
   }
 
-  ws.on("message", (data: RawData) => {
+  ws.on("message", (rawData: Buffer) => {
     try {
-      const message = JSON.parse(data.toString()) as WebSocketMessage;
+      const message: WebSocketMessage = JSON.parse(rawData.toString());
       console.log("Received message:", message);
 
       if (message.type === "QUOTE_RESPONSE") {
@@ -59,8 +57,8 @@ wss.on("connection", (ws: WebSocket) => {
           data: message.data,
         });
       }
-    } catch (error) {
-      console.error("Error processing message:", error);
+    } catch (err) {
+      console.error("Message processing error:", err);
     }
   });
 
@@ -80,5 +78,5 @@ server.on("error", (error: Error) => {
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`> WebSocket Server is running on ws://${HOST}:${PORT}`);
+  console.log(`> WebSocket Server running at ws://${HOST}:${PORT}`);
 });
