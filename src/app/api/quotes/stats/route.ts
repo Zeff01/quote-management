@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export async function GET() {
   try {
     const client = await clientPromise;
@@ -35,7 +38,10 @@ export async function GET() {
       {
         headers: {
           "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
+          "Surrogate-Control": "no-store",
         },
       }
     );

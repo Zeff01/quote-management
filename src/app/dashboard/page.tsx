@@ -61,8 +61,18 @@ export default function Dashboard() {
   const fetchData = useCallback(async (retryCount = 3) => {
     console.log("[Dashboard] Fetching data from API...");
     try {
+      const timestamp = new Date().getTime(); // Add timestamp to prevent caching
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats`
+        `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats?t=${timestamp}`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control":
+              "no-cache, no-store, must-revalidate, proxy-revalidate",
+            Pragma: "no-cache",
+          },
+          next: { revalidate: 0 },
+        }
       );
 
       if (!res.ok) {
@@ -75,7 +85,7 @@ export default function Dashboard() {
       setStats(data.stats);
       setQuotes(data.recentQuotes);
       setLastUpdated(new Date());
-      setError(""); // Clear any existing errors
+      setError("");
     } catch (error) {
       console.error("[Dashboard] Error fetching data:", error);
       if (retryCount > 0) {
@@ -86,8 +96,6 @@ export default function Dashboard() {
           "Failed to load dashboard data. Please try refreshing the page."
         );
       }
-    } finally {
-      setLoading(false);
     }
   }, []);
 
