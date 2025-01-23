@@ -5,7 +5,11 @@ if (!process.env.MONGODB_URI) {
 }
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  namespace NodeJS {
+    interface Global {
+      _mongoClientPromise: Promise<MongoClient> | undefined;
+    }
+  }
 }
 
 const uri = process.env.MONGODB_URI;
