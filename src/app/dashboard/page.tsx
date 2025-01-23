@@ -53,19 +53,20 @@ export default function Dashboard() {
   const [quotes, setQuotes] = useState<QuoteDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const wsRef = useRef<WebSocketService | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchData = useCallback(async () => {
+  // Enhanced fetchData function with retry logic
+  const fetchData = useCallback(async (retryCount = 3) => {
     console.log("[Dashboard] Fetching data from API...");
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats`
       );
-      console.log("[Dashboard] API Response Status:", res.status);
 
       if (!res.ok) {
-        throw new Error("Failed to fetch stats");
+        throw new Error(`Failed to fetch stats: ${res.status}`);
       }
 
       const data = (await res.json()) as DashboardData;
@@ -73,21 +74,28 @@ export default function Dashboard() {
 
       setStats(data.stats);
       setQuotes(data.recentQuotes);
+      setLastUpdated(new Date());
+      setError(""); // Clear any existing errors
     } catch (error) {
       console.error("[Dashboard] Error fetching data:", error);
-      setError("Failed to load dashboard data");
+      if (retryCount > 0) {
+        console.log(`[Dashboard] Retrying... (${retryCount} attempts left)`);
+        setTimeout(() => fetchData(retryCount - 1), 2000);
+      } else {
+        setError(
+          "Failed to load dashboard data. Please try refreshing the page."
+        );
+      }
     } finally {
-      console.log("[Dashboard] Fetching data complete.");
       setLoading(false);
     }
   }, []);
 
+  // WebSocket update handler
   const handleWebSocketUpdate = useCallback(
     (data: WebSocketUpdateData) => {
       console.log("[WebSocket] Received update:", data);
       if (data.type === "QUOTE_UPDATE") {
-        fetchData();
-        console.log("[WebSocket] Triggering fetch for updated data...");
         if (fetchTimeoutRef.current) {
           clearTimeout(fetchTimeoutRef.current);
         }
@@ -97,29 +105,53 @@ export default function Dashboard() {
     [fetchData]
   );
 
+  // Initialize WebSocket and data fetching
   useEffect(() => {
     console.log("[Dashboard] Component mounted.");
     fetchData();
 
-    if (!wsRef.current) {
-      console.log("[WebSocket] Initializing WebSocket connection...");
-      wsRef.current = WebSocketService.getInstance();
-    }
-
-    console.log("[WebSocket] Adding WebSocket listener...");
-    const cleanup = wsRef.current.addListener(handleWebSocketUpdate);
-
-    return () => {
-      console.log("[Dashboard] Cleaning up WebSocket listener...");
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
+    // Initialize WebSocket connection
+    try {
+      if (!wsRef.current) {
+        console.log("[WebSocket] Initializing WebSocket connection...");
+        wsRef.current = WebSocketService.getInstance();
       }
-      cleanup();
-    };
-  }, [fetchData, handleWebSocketUpdate]);
+
+      const cleanup = wsRef.current.addListener(handleWebSocketUpdate);
+
+      // Set up periodic refresh as fallback
+      const refreshInterval = setInterval(() => {
+        const timeSinceLastUpdate =
+          new Date().getTime() - lastUpdated.getTime();
+        if (timeSinceLastUpdate > 30000) {
+          // 30 seconds
+          console.log("[Dashboard] Performing periodic refresh...");
+          fetchData();
+        }
+      }, 30000);
+
+      return () => {
+        console.log("[Dashboard] Cleaning up...");
+        if (fetchTimeoutRef.current) {
+          clearTimeout(fetchTimeoutRef.current);
+        }
+        clearInterval(refreshInterval);
+        cleanup();
+      };
+    } catch (error) {
+      console.error("[WebSocket] Setup error:", error);
+      setError("WebSocket connection failed. Updates may be delayed.");
+    }
+  }, [fetchData, handleWebSocketUpdate, lastUpdated]);
+
+  // Manual refresh handler
+  const handleManualRefresh = () => {
+    console.log("[Dashboard] Manual refresh triggered");
+    setLoading(true);
+    fetchData();
+  };
 
   if (loading) {
-    console.log("[Dashboard] Loading state...");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -127,36 +159,54 @@ export default function Dashboard() {
     );
   }
 
-  if (error) {
-    console.log("[Dashboard] Error state:", error);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-
-  console.log("[Dashboard] Rendered with data:", { stats, quotes });
-
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Home Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => {
-              console.log("[Dashboard] Navigating to Home...");
-              router.push("/");
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
-          >
-            <Home className="w-5 h-5" />
-            Home
-          </button>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <button
+              onClick={() => router.push("/")}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
+            >
+              <Home className="w-5 h-5" />
+              Home
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+            <button
+              onClick={handleManualRefresh}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all flex items-center gap-2"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
         <h1 className="text-3xl font-bold mb-8">Quote Dashboard</h1>
 
+        {/* Rest of your dashboard content remains the same */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <DashboardCard
             title="Total Quotes"
@@ -184,6 +234,7 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* Recent Quotes section remains the same */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold mb-4">Recent Quotes</h2>
           <div className="space-y-4">
