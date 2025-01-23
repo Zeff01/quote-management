@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import WebSocketService from "@/services/websocket";
 import { QuoteDocument } from "@/types/db";
@@ -16,11 +16,7 @@ export default function QuoteDetails({ id }: QuoteDetailsProps) {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchQuote();
-  }, [id]);
-
-  const fetchQuote = async () => {
+  const fetchQuote = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -36,7 +32,11 @@ export default function QuoteDetails({ id }: QuoteDetailsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchQuote();
+  }, [fetchQuote]);
 
   const handleResponse = async (status: "accepted" | "denied") => {
     try {
