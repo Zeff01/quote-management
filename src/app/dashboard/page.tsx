@@ -56,12 +56,17 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const wsRef = useRef<WebSocketService | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdatedRef = useRef<Date>(new Date());
 
-  // Enhanced fetchData function with retry logic
+  // Update ref when state changes
+  useEffect(() => {
+    lastUpdatedRef.current = lastUpdated;
+  }, [lastUpdated]);
+
   const fetchData = useCallback(async (retryCount = 3) => {
     console.log("[Dashboard] Fetching data from API...");
     try {
-      const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_URL}/api/quotes/stats?t=${timestamp}`,
         {
@@ -71,7 +76,6 @@ export default function Dashboard() {
               "no-cache, no-store, must-revalidate, proxy-revalidate",
             Pragma: "no-cache",
           },
-          next: { revalidate: 0 },
         }
       );
 
@@ -96,10 +100,11 @@ export default function Dashboard() {
           "Failed to load dashboard data. Please try refreshing the page."
         );
       }
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // WebSocket update handler
   const handleWebSocketUpdate = useCallback(
     (data: WebSocketUpdateData) => {
       console.log("[WebSocket] Received update:", data);
@@ -113,7 +118,6 @@ export default function Dashboard() {
     [fetchData]
   );
 
-  // Initialize WebSocket and data fetching
   useEffect(() => {
     console.log("[Dashboard] Component mounted.");
     fetchData();
@@ -130,9 +134,8 @@ export default function Dashboard() {
       // Set up periodic refresh as fallback
       const refreshInterval = setInterval(() => {
         const timeSinceLastUpdate =
-          new Date().getTime() - lastUpdated.getTime();
+          new Date().getTime() - lastUpdatedRef.current.getTime();
         if (timeSinceLastUpdate > 30000) {
-          // 30 seconds
           console.log("[Dashboard] Performing periodic refresh...");
           fetchData();
         }
@@ -150,9 +153,8 @@ export default function Dashboard() {
       console.error("[WebSocket] Setup error:", error);
       setError("WebSocket connection failed. Updates may be delayed.");
     }
-  }, [fetchData, handleWebSocketUpdate, lastUpdated]);
+  }, [fetchData, handleWebSocketUpdate]); // Removed lastUpdated from dependencies
 
-  // Manual refresh handler
   const handleManualRefresh = () => {
     console.log("[Dashboard] Manual refresh triggered");
     setLoading(true);
